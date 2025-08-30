@@ -4,21 +4,28 @@ import os
 
 app = Flask(__name__)
 
-# Default headers to mimic a real browser/player
+# Default headers (will be merged with client headers)
 DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
-    "Referer": "https://newkso.ru/",
-    "Origin": "https://newkso.ru",
     "Accept": "*/*",
     "Accept-Language": "en-US,en;q=0.9",
-    "Connection": "keep-alive"
+    "Connection": "keep-alive",
 }
 
+
+def build_headers():
+    """Merge client headers with defaults (override defaults if client sends same header)"""
+    headers = DEFAULT_HEADERS.copy()
+    for key, value in request.headers.items():
+        if key.lower() not in ["host"]:  # don’t forward Host
+            headers[key] = value
+    return headers
+
+
 def fetch_url(url, stream=False):
-    """Fetch a URL with IPTV-friendly headers"""
     try:
-        return requests.get(url, headers=DEFAULT_HEADERS, stream=stream, timeout=15)
-    except Exception as e:
+        return requests.get(url, headers=build_headers(), stream=stream, timeout=15)
+    except Exception:
         return None
 
 
@@ -39,10 +46,8 @@ def proxy_m3u():
 
     for line in resp.text.splitlines():
         if line.strip().startswith("#") or not line.strip():
-            # Keep comments/metadata as-is
             lines.append(line)
         else:
-            # Rewrite relative or absolute URLs to go through proxy
             if not line.startswith("http"):
                 target = f"{base_url}/{line}"
             else:
@@ -67,8 +72,8 @@ def proxy_ts():
         return "❌ Missing url param", 400
 
     r = fetch_url(url, stream=True)
-    if r is None:
-        return "❌ Error fetching .ts", 502
+    if r is None or r.status_code != 200:
+        return f"❌ Failed to fetch segment (status {r.status_code if r else '??'})", 502
 
     return Response(r.iter_content(chunk_size=8192),
                     content_type=r.headers.get("content-type", "video/MP2T"))
@@ -82,7 +87,7 @@ def proxy_key():
 
     r = fetch_url(url, stream=True)
     if r is None or r.status_code != 200:
-        return "❌ Failed to fetch key", 502
+        return f"❌ Failed to fetch key (status {r.status_code if r else '??'})", 502
 
     return Response(r.content, content_type="application/octet-stream")
 
@@ -93,5 +98,5 @@ def home():
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 7860))  # Render gives a dynamic $PORT
+    port = int(os.environ.get("PORT", 7860))
     app.run(host="0.0.0.0", port=port)
