@@ -6,9 +6,9 @@ app = Flask(__name__)
 
 # Common headers for IPTV servers
 DEFAULT_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-    "Referer": "https://windnew.newkso.ru/",
-    "Origin": "https://windnew.newkso.ru"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6998.35/36 Safari/537.36",
+    "Referer": "https://jxoxkplay.xyz/",
+    "Origin": "https://jxoxkplay.xyz"
 }
 
 def fetch_url(url, extra_headers=None, stream=False):
