@@ -5,14 +5,20 @@ app = Flask(__name__)
 HLS_DIR = "/tmp/hls"
 os.makedirs(HLS_DIR, exist_ok=True)
 
-# MPD + Clearkey
+# MPD source
 MPD_URL = "https://qp-pldt-live-grp-01-prod.akamaized.net/out/u/celmovie_pinoy_sd.mpd"
+
+# Clearkey DRM
 KID = "0f8537d8412b11edb8780242ac120002"
 KEY = "2ffd7230416150fd5196fd7ea71c36f3"
-CLEARKEY = f"{KID}:{KEY}"
+
+# Try with KEY only first (if KID:KEY fails)
+CLEARKEY = KEY
+# CLEARKEY = f"{KID}:{KEY}"   # enable this if ffmpeg requires KID:KEY
 
 def run_ffmpeg():
     while True:
+        print("🚀 Starting ffmpeg...", flush=True)
         process = subprocess.Popen([
             "ffmpeg", "-y",
             "-decryption_key", CLEARKEY,
@@ -25,15 +31,14 @@ def run_ffmpeg():
             os.path.join(HLS_DIR, "celestial.m3u8")
         ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-        # Print ffmpeg logs to container logs
         for line in iter(process.stdout.readline, b''):
             print(line.decode().strip(), flush=True)
 
         process.wait()
-        print("⚠️ ffmpeg exited, restarting in 5s", flush=True)
+        print("⚠️ ffmpeg exited. Restarting in 5s...", flush=True)
         time.sleep(5)
 
-# Background ffmpeg thread
+# Run ffmpeg in background
 threading.Thread(target=run_ffmpeg, daemon=True).start()
 
 @app.route("/<path:filename>")
@@ -46,8 +51,11 @@ def index():
 
 @app.route("/healthz")
 def healthz():
-    # Check if playlist exists
     if os.path.exists(os.path.join(HLS_DIR, "celestial.m3u8")):
         return jsonify(status="ok"), 200
     else:
         return jsonify(status="starting"), 503
+
+@app.route("/debug")
+def debug():
+    return {"files": os.listdir(HLS_DIR)}
