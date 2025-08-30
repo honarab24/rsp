@@ -5,8 +5,13 @@ app = Flask(__name__)
 HLS_DIR = "/tmp/hls"
 os.makedirs(HLS_DIR, exist_ok=True)
 
+# MPD source
 MPD_URL = "https://qp-pldt-live-grp-01-prod.akamaized.net/out/u/celmovie_pinoy_sd.mpd"
-CLEARKEY = "2ffd7230416150fd5196fd7ea71c36f3"  # from KODIPROP
+
+# Clearkey DRM (KID:KEY)
+KID = "0f8537d8412b11edb8780242ac120002"
+KEY = "2ffd7230416150fd5196fd7ea71c36f3"
+CLEARKEY = f"{KID}:{KEY}"
 
 def run_ffmpeg():
     while True:
@@ -24,6 +29,7 @@ def run_ffmpeg():
         process.wait()
         time.sleep(5)
 
+# Run ffmpeg in background
 threading.Thread(target=run_ffmpeg, daemon=True).start()
 
 @app.route("/<path:filename>")
