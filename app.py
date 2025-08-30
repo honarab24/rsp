@@ -1,26 +1,35 @@
-import subprocess, os
+import subprocess, os, threading, time
 from flask import Flask, send_from_directory
 
 app = Flask(__name__)
 HLS_DIR = "/tmp/hls"
 os.makedirs(HLS_DIR, exist_ok=True)
 
-# Start ffmpeg conversion (DASH -> HLS)
-subprocess.Popen([
-    "ffmpeg", "-y",
-    "-i", "https://qp-pldt-live-grp-01-prod.akamaized.net/out/u/celmovie_pinoy_sd.mpd",
-    "-c", "copy",
-    "-f", "hls",
-    "-hls_time", "6",
-    "-hls_list_size", "10",
-    "-hls_flags", "delete_segments",
-    os.path.join(HLS_DIR, "celestial.m3u8")
-])
+MPD_URL = "https://qp-pldt-live-grp-01-prod.akamaized.net/out/u/celmovie_pinoy_sd.mpd"
+CLEARKEY = "2ffd7230416150fd5196fd7ea71c36f3"  # from KODIPROP
 
-@app.route("/celestial.m3u8")
-def playlist():
-    return send_from_directory(HLS_DIR, "celestial.m3u8")
+def run_ffmpeg():
+    while True:
+        process = subprocess.Popen([
+            "ffmpeg", "-y",
+            "-decryption_key", CLEARKEY,
+            "-i", MPD_URL,
+            "-c:v", "copy", "-c:a", "copy",
+            "-f", "hls",
+            "-hls_time", "6",
+            "-hls_list_size", "10",
+            "-hls_flags", "delete_segments+append_list+omit_endlist",
+            os.path.join(HLS_DIR, "celestial.m3u8")
+        ])
+        process.wait()
+        time.sleep(5)
 
-@app.route("/<path:path>")
-def serve_file(path):
-    return send_from_directory(HLS_DIR, path)
+threading.Thread(target=run_ffmpeg, daemon=True).start()
+
+@app.route("/<path:filename>")
+def serve_file(filename):
+    return send_from_directory(HLS_DIR, filename)
+
+@app.route("/")
+def index():
+    return "Restream is running. Playlist: /celestial.m3u8"
