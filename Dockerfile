@@ -1,22 +1,28 @@
 FROM python:3.11-slim
 
-# Install ffmpeg (needed for decryption + HLS)
+# Install ffmpeg
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
+# Create a non-root user
+RUN useradd -ms /bin/bash appuser
+
 # Set workdir
 WORKDIR /app
 
-# Install Python dependencies
+# Copy requirements and install as non-root
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --break-system-packages -r requirements.txt
 
-# Copy app source
-COPY app.py .
+# Copy app
+COPY . .
 
-# Expose Flask port
+# Change ownership
+RUN chown -R appuser:appuser /app
+
+# Switch to non-root
+USER appuser
+
 EXPOSE 5000
-
-# Run Flask app
 CMD ["python", "app.py"]
