@@ -1,0 +1,44 @@
+# This workflow updates the README.md file with the latest timestamp to trigger Render auto-deploy
+name: Trigger Render Deploy (Overwrite README)
+
+on:
+  schedule:
+    - cron: '0 */8 * * *'  # Runs every 8 hours (at minute 0 past every 8th hour)
+  workflow_dispatch:        # Allows manual trigger from GitHub Actions tab
+
+permissions:
+  contents: write # Grant permissions to write to the repository
+
+jobs:
+  update_readme:
+    runs-on: ubuntu-latest # Use the latest Ubuntu runner
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3 # Checkout your repository code
+
+      - name: Configure Git
+        run: |
+          # Configure Git with bot user details
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+      - name: Overwrite README.md with latest timestamp
+        run: |
+          # Overwrite README.md with only the latest update timestamp
+          echo "Last automatic update trigger: $(date)" > README.md # Use '>' to overwrite
+
+      - name: Commit and Push Changes
+        run: |
+          # Add the modified README.md file to staging
+          git add README.md
+          # Check if there are any changes staged for commit
+          # If there are changes, commit them
+          # The || true at the end prevents the workflow from failing if there are no changes
+          git diff --quiet --cached || git commit -m "Automated README update to trigger deploy"
+          # Push the changes to the main branch
+          # Assumes your main branch is named 'main'
+          git push origin main
+        env:
+          # Use the default GITHUB_TOKEN for authentication
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
