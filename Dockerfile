@@ -5,24 +5,20 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user
-RUN useradd -ms /bin/bash appuser
-
-# Set workdir
 WORKDIR /app
 
-# Copy requirements and install as non-root
+# Install Python deps
 COPY requirements.txt .
 RUN pip install --no-cache-dir --break-system-packages -r requirements.txt
+
+# Install gunicorn for production
+RUN pip install gunicorn
 
 # Copy app
 COPY . .
 
-# Change ownership
-RUN chown -R appuser:appuser /app
-
-# Switch to non-root
-USER appuser
-
+# Expose Flask port
 EXPOSE 5000
-CMD ["python", "app.py"]
+
+# Use Gunicorn to serve Flask app on Render
+CMD ["gunicorn", "-b", "0.0.0.0:5000", "app:app"]
